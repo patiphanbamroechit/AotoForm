@@ -20,6 +20,7 @@
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .source-tab-active { border-bottom: 3px solid #4f46e5; color: #4f46e5; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen pb-20">
@@ -49,19 +50,19 @@
             <div class="bg-indigo-600 rounded-[2.5rem] p-8 text-white mb-10 shadow-2xl shadow-indigo-100 relative overflow-hidden">
                 <div class="relative z-10">
                     <h2 class="text-2xl font-black mb-2 flex items-center gap-2">
-                        <i data-lucide="sparkles" class="text-yellow-300"></i> ระบบพร้อมใช้งาน!
+                        <i data-lucide="zap" class="text-yellow-300"></i> อัปเดตระบบแกะโค้ดใหม่
                     </h2>
                     <p class="text-indigo-100 text-sm opacity-90 leading-relaxed max-w-md">
-                        คุณสามารถใช้ AI สแกนช่องข้อมูลอัตโนมัติ หรือจะเพิ่มช่องข้อมูลด้วยตัวเอง (Manual) ก็ได้หากสแกนไม่ติดครับ
+                        แก้ไขให้รองรับการวาง Source Code (Ctrl+U) ได้แม่นยำขึ้น ระบบจะค้นหา Entry ID จากโครงสร้างข้อมูลของ Google โดยตรงครับ
                     </p>
                 </div>
-                <i data-lucide="search" class="absolute -bottom-10 -right-10 opacity-10 w-60 h-60"></i>
+                <i data-lucide="code-2" class="absolute -bottom-10 -right-10 opacity-10 w-60 h-60"></i>
             </div>
 
             <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
                 <div class="px-8 py-5 border-b bg-slate-50/50 flex items-center justify-between">
                     <h3 class="font-bold text-slate-700 flex items-center gap-2">
-                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> รายการที่รอดำเนินการ
+                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> รายการที่รอส่งตามเวลา
                     </h3>
                     <span id="task-count" class="text-xs font-bold text-slate-400">0 รายการ</span>
                 </div>
@@ -91,75 +92,83 @@
             <div class="px-8 py-7 border-b flex justify-between items-center bg-slate-50/80 sticky top-0 z-10">
                 <div>
                     <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
-                        <i data-lucide="sparkles" class="w-6 h-6 text-indigo-600"></i> ตั้งเวลาส่งฟอร์ม
+                        <i data-lucide="clock" class="w-6 h-6 text-indigo-600"></i> ตั้งค่าการส่งอัตโนมัติ
                     </h3>
-                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Google Form Automation</p>
+                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Enhanced Parser Mode</p>
                 </div>
                 <button onclick="toggleModal(false)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-slate-600 shadow-sm border">✕</button>
             </div>
 
-            <div class="p-8 space-y-8">
+            <div class="p-8 space-y-6">
                 <div id="error-alert" class="hidden bg-red-50 border border-red-100 p-5 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-bold">
                     <i data-lucide="alert-circle" class="w-5 h-5"></i>
                     <span id="error-text"></span>
                 </div>
 
-                <!-- Step 1: URL -->
-                <div class="space-y-4">
-                    <div class="flex items-center gap-2">
-                        <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
-                        <label class="text-xs font-black text-slate-400 uppercase tracking-wider">ใส่ลิงก์ Google Form</label>
-                    </div>
-                    <div class="flex flex-col gap-3">
+                <!-- Tabs -->
+                <div class="flex gap-6 border-b text-sm font-bold text-slate-400 mb-2">
+                    <button id="tab-ai" onclick="switchTab('ai')" class="pb-2 transition-all flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> สแกนด้วย AI
+                    </button>
+                    <button id="tab-source" onclick="switchTab('source')" class="pb-2 source-tab-active transition-all flex items-center gap-2">
+                        <i data-lucide="code-2" class="w-4 h-4"></i> วางโค้ดหน้าเว็บ (Ctrl+U)
+                    </button>
+                </div>
+
+                <!-- AI Section -->
+                <div id="ai-input-section" class="space-y-4 hidden">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block">ลิงก์ Google Form</label>
                         <div class="flex gap-2">
-                            <input id="form-url" type="url" placeholder="https://docs.google.com/forms/d/e/.../viewform" class="flex-1 px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs">
-                            <button id="scan-btn" onclick="scanFormWithAI()" class="bg-indigo-600 text-white px-6 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition shadow-lg active:scale-95 disabled:opacity-50 min-w-[140px] justify-center">
-                                <i data-lucide="search" class="w-4 h-4 text-current"></i>
+                            <input id="form-url" type="url" placeholder="https://docs.google.com/forms/d/e/.../viewform" class="flex-1 px-5 py-3.5 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs">
+                            <button id="scan-btn" onclick="scanFormWithAI()" class="bg-indigo-600 text-white px-6 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition shadow-lg active:scale-95 disabled:opacity-50 min-w-[150px] justify-center">
+                                <i data-lucide="search" class="w-4 h-4"></i>
                                 <span>สแกนด้วย AI</span>
                             </button>
                         </div>
-                        <button onclick="addManualField()" class="text-indigo-600 text-xs font-bold flex items-center gap-1 hover:underline w-fit ml-1">
-                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> เพิ่มช่องข้อมูลเอง (Manual)
+                    </div>
+                </div>
+
+                <!-- Source Section -->
+                <div id="source-input-section" class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 block italic">วิธีการ: 1. เปิดฟอร์ม 2. กด Ctrl + U 3. Ctrl + A คัดลอกทั้งหมด 4. วางที่นี่</label>
+                        <textarea id="form-source-code" rows="5" placeholder="วางโค้ดจากหน้า Ctrl+U ที่นี่..." class="w-full px-5 py-4 bg-slate-900 text-green-400 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-[10px]"></textarea>
+                        <button id="parse-source-btn" onclick="parseFormFromSource()" class="w-full mt-2 bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">
+                            <i data-lucide="file-search" class="w-4 h-4"></i>
+                            แกะข้อมูลจากโค้ดทันที
                         </button>
                     </div>
                 </div>
 
-                <!-- Step 2: Fields List -->
-                <div id="ai-fields-container" class="hidden bg-indigo-50/40 p-8 rounded-[2rem] border border-indigo-100/50 space-y-6">
+                <!-- AI Result Fields -->
+                <div id="ai-fields-container" class="hidden bg-indigo-50/40 p-6 rounded-[2rem] border border-indigo-100/50 space-y-4">
                     <div class="flex justify-between items-center border-b border-indigo-100 pb-2">
                         <h4 class="text-xs font-black text-indigo-600 uppercase flex items-center gap-2">
-                            <i data-lucide="file-text" class="w-4 h-4"></i> รายการช่องข้อมูล
+                            <i data-lucide="file-text" class="w-4 h-4"></i> ตรวจพบคำถามในฟอร์ม
                         </h4>
-                        <button onclick="addManualField()" class="bg-white text-indigo-600 text-[10px] px-3 py-1 rounded-full border border-indigo-200 font-bold hover:bg-indigo-50 transition">
-                            + เพิ่มช่อง
-                        </button>
+                        <span id="fields-count-badge" class="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold">0</span>
                     </div>
-                    <div id="fields-list" class="space-y-4">
-                        <!-- Rendered fields -->
+                    <div id="fields-list" class="space-y-4 max-h-[250px] overflow-y-auto pr-2">
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
 
                 <!-- Step 3: Meta -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">2</span>
-                            <label class="text-xs font-black text-slate-400 uppercase tracking-wider">ชื่องานของคุณ</label>
-                        </div>
-                        <input id="task-name" type="text" placeholder="เช่น เช็คชื่อเข้างาน" class="w-full px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block">ชื่องาน (เพื่อจำ)</label>
+                        <input id="task-name" type="text" placeholder="ระบุชื่องาน..." class="w-full px-5 py-3.5 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm">
                     </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">3</span>
-                            <label class="text-xs font-black text-slate-400 uppercase tracking-wider">วันและเวลาที่ต้องการส่ง</label>
-                        </div>
-                        <input id="task-time" type="datetime-local" class="w-full px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-wider block">วันและเวลาส่ง</label>
+                        <input id="task-time" type="datetime-local" class="w-full px-5 py-3.5 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm">
                     </div>
                 </div>
 
-                <div class="pt-4">
-                    <button id="save-btn" onclick="saveTask()" class="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg hover:bg-black transition shadow-xl disabled:opacity-20 active:scale-[0.98]">
-                        ตกลง ตั้งเวลาส่งฟอร์ม
+                <div class="pt-2">
+                    <button id="save-btn" onclick="saveTask()" class="w-full bg-slate-900 text-white py-4 rounded-[1.5rem] font-black text-lg hover:bg-black transition shadow-xl disabled:opacity-20 active:scale-[0.98]">
+                        บันทึกรายการตั้งเวลา
                     </button>
                 </div>
             </div>
@@ -191,7 +200,8 @@
 
         let userId, tasks = [];
         let detectedFields = [];
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-form-ai-html';
+        let activeTab = 'source';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-form-full-auto';
         const apiKey = ""; 
 
         window.toggleModal = (show) => {
@@ -200,14 +210,25 @@
             if(!show) resetModalForm();
         };
 
+        window.switchTab = (tab) => {
+            activeTab = tab;
+            document.getElementById('tab-ai').className = tab === 'ai' ? 'pb-2 source-tab-active transition-all flex items-center gap-2' : 'pb-2 transition-all flex items-center gap-2';
+            document.getElementById('tab-source').className = tab === 'source' ? 'pb-2 source-tab-active transition-all flex items-center gap-2' : 'pb-2 transition-all flex items-center gap-2';
+            
+            document.getElementById('ai-input-section').classList.toggle('hidden', tab !== 'ai');
+            document.getElementById('source-input-section').classList.toggle('hidden', tab !== 'source');
+        };
+
         const resetModalForm = () => {
             document.getElementById('form-url').value = '';
+            document.getElementById('form-source-code').value = '';
             document.getElementById('task-name').value = '';
             document.getElementById('task-time').value = '';
             document.getElementById('ai-fields-container').classList.add('hidden');
             document.getElementById('fields-list').innerHTML = '';
             document.getElementById('error-alert').classList.add('hidden');
             detectedFields = [];
+            switchTab('source');
         };
 
         const initAuth = async () => {
@@ -221,9 +242,7 @@
                 } else {
                     await signInAnonymously(auth);
                 }
-            } catch (err) {
-                console.error("Auth Failure:", err);
-            }
+            } catch (err) { console.error("Auth Failure:", err); }
         };
 
         onAuthStateChanged(auth, (user) => {
@@ -253,12 +272,12 @@
                 container.innerHTML = `
                     <div class="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
                         <div class="bg-slate-100 p-4 rounded-full"><i data-lucide="database" class="w-8 h-8 opacity-20"></i></div>
-                        <p class="text-sm font-medium">ยังไม่มีรายการที่ตั้งเวลาไว้</p>
+                        <p class="text-sm font-medium">ไม่มีรายการที่ตั้งเวลาไว้</p>
                     </div>
                 `;
             } else {
                 container.innerHTML = tasks.map(task => `
-                    <div class="p-8 hover:bg-slate-50/30 transition flex flex-col sm:flex-row sm:items-center gap-6">
+                    <div class="p-8 hover:bg-slate-50/30 transition flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                         <div class="flex-1">
                             <div class="flex items-center gap-3 mb-2">
                                 <h4 class="font-bold text-slate-800 text-lg">${task.name}</h4>
@@ -266,13 +285,13 @@
                                     ${task.fields?.length || 0} ช่องข้อมูล
                                 </span>
                             </div>
-                            <p class="text-xs text-slate-400 font-mono truncate max-w-sm">${task.url}</p>
+                            <p class="text-xs text-gray-400 font-mono truncate max-w-sm">${task.url}</p>
                             <div class="mt-4 flex flex-wrap items-center gap-4">
                                 <div class="text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-2 border ${getStatusStyles(task.status)}">
                                     ${task.status.toUpperCase()}
                                 </div>
-                                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
-                                    🗓️ ${new Date(task.scheduledTime).toLocaleString('th-TH')}
+                                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-1">
+                                    <i data-lucide="clock" class="w-3 h-3"></i> ${new Date(task.scheduledTime).toLocaleString('th-TH')}
                                 </span>
                             </div>
                         </div>
@@ -298,39 +317,87 @@
             await deleteDoc(taskRef);
         };
 
-        // Manual Add Logic
-        window.addManualField = () => {
-            detectedFields.push({ label: '', entryId: '', value: '', isManual: true });
-            document.getElementById('ai-fields-container').classList.remove('hidden');
-            renderFieldInputs();
-        };
+        // --- ENHANCED SOURCE CODE PARSER ---
+        window.parseFormFromSource = () => {
+            const html = document.getElementById('form-source-code').value;
+            const errorAlert = document.getElementById('error-alert');
+            const aiFieldsContainer = document.getElementById('ai-fields-container');
+            
+            if (!html) return;
 
-        window.removeManualField = (index) => {
-            detectedFields.splice(index, 1);
-            if (detectedFields.length === 0) {
-                document.getElementById('ai-fields-container').classList.add('hidden');
+            try {
+                errorAlert.classList.add('hidden');
+                
+                // 1. New Powerful Extraction using FB_PUBLIC_LOAD_DATA structure
+                // This structure: [ID, "Question Text", null, TYPE, [[ENTRY_ID, ...]]]
+                // Regex matches specific block: [internal_id, "label", null, type, [[entry_id
+                const questionBlockRegex = /\[\d+,"([^"]+)",(?:null|"[^"]*"),\d+,\[\[(\d+)/g;
+                let fields = [];
+                let match;
+
+                while ((match = questionBlockRegex.exec(html)) !== null) {
+                    fields.push({
+                        label: match[1],
+                        entryId: `entry.${match[2]}`,
+                        value: ''
+                    });
+                }
+
+                // 2. Fallback: If Block regex fails, try searching name="entry.ID" directly
+                if (fields.length === 0) {
+                    const entryRegex = /entry\.(\d+)/g;
+                    const entryMatches = [...html.matchAll(entryRegex)];
+                    const uniqueIds = [...new Set(entryMatches.map(m => m[1]))];
+                    
+                    fields = uniqueIds.map(id => ({
+                        label: `ช่องข้อมูลรหัส ${id}`,
+                        entryId: `entry.${id}`,
+                        value: ''
+                    }));
+                }
+
+                if (fields.length > 0) {
+                    detectedFields = fields;
+                    renderFieldInputs();
+                    aiFieldsContainer.classList.remove('hidden');
+                    document.getElementById('fields-count-badge').innerText = fields.length;
+                    
+                    // Auto-detect Title
+                    const titleMatch = html.match(/<title>(.*?)<\/title>/i) || html.match(/FB_PUBLIC_LOAD_DATA_.*?,"(.*?)",/s);
+                    if (titleMatch && !document.getElementById('task-name').value) {
+                        document.getElementById('task-name').value = titleMatch[1].replace('จองคิวกดบัตร exo - ', '').trim();
+                    }
+
+                    // Auto-detect Response URL
+                    const actionMatch = html.match(/action="(https:\/\/docs\.google\.com\/forms\/.*?\/formResponse.*?)"/);
+                    if (actionMatch) {
+                        document.getElementById('form-url').value = actionMatch[1];
+                    }
+                } else {
+                    throw new Error("ไม่สามารถระบุ Entry ID จากโค้ดนี้ได้ กรุณาตรวจสอบว่าคัดลอกมาครบถ้วน (Ctrl+U)");
+                }
+
+            } catch (err) {
+                errorAlert.classList.remove('hidden');
+                document.getElementById('error-text').innerText = err.message;
             }
-            renderFieldInputs();
         };
 
-        // AI Scan Logic
+        // --- AI SCAN LOGIC ---
         window.scanFormWithAI = async () => {
             const url = document.getElementById('form-url').value;
             if (!url) return;
-
             const btn = document.getElementById('scan-btn');
             const aiContainer = document.getElementById('ai-fields-container');
             const errorAlert = document.getElementById('error-alert');
-
             btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> สแกนอยู่...';
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> กำลังสแกน...';
             errorAlert.classList.add('hidden');
             if (window.lucide) window.lucide.createIcons();
 
             try {
-                const systemPrompt = `Analyze Google Form URL. Extract all question labels and their 'entry.xxxx' input IDs. Return raw JSON array: [{"label": "Name", "entryId": "entry.123"}]. No markdown.`;
-                const userQuery = `Extract IDs for: ${url}`;
-
+                const systemPrompt = `Google Form Scraper. Extract labels and entry IDs. Return raw JSON array: [{"label": "Q Text", "entryId": "entry.123"}]. No markdown.`;
+                const userQuery = `Scrape: ${url}`;
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -340,27 +407,19 @@
                         tools: [{ "google_search": {} }]
                     })
                 });
-
                 const result = await response.json();
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
                 let cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
                 let parsed = JSON.parse(cleanJson);
-
-                let aiFields = Array.isArray(parsed) ? parsed : (parsed.fields || []);
-                
-                // Merge with existing manual fields if any
-                detectedFields = [...detectedFields.filter(f => f.isManual), ...aiFields];
-
+                detectedFields = Array.isArray(parsed) ? parsed : (parsed.fields || []);
                 if (detectedFields.length > 0) {
                     renderFieldInputs();
                     aiContainer.classList.remove('hidden');
-                } else {
-                    throw new Error("No fields found");
-                }
+                    document.getElementById('fields-count-badge').innerText = detectedFields.length;
+                } else { throw new Error("AI สแกนไม่ติด แนะนำให้ใช้ปุ่ม 'วางโค้ดหน้าเว็บ (Ctrl+U)' แทนครับ"); }
             } catch (err) {
-                console.error(err);
                 errorAlert.classList.remove('hidden');
-                document.getElementById('error-text').innerText = "AI สแกนไม่พบช่องข้อมูล คุณสามารถกด 'เพิ่มช่องข้อมูลเอง' เพื่อระบุ ID ได้ครับ";
+                document.getElementById('error-text').innerText = err.message;
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i data-lucide="search" class="w-4 h-4 text-current"></i> <span>สแกนด้วย AI</span>';
@@ -371,39 +430,25 @@
         const renderFieldInputs = () => {
             const list = document.getElementById('fields-list');
             if (!list) return;
-            
             list.innerHTML = detectedFields.map((f, i) => `
-                <div class="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-3 relative group">
-                    <button onclick="removeManualField(${i})" class="absolute top-2 right-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
-                        <i data-lucide="x" class="w-4 h-4"></i>
-                    </button>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">ชื่อช่องคำถาม</label>
-                            ${f.isManual ? 
-                                `<input type="text" placeholder="เช่น ชื่อ-นามสกุล" value="${f.label}" onchange="updateDetectedField(${i}, 'label', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-300">` :
-                                `<p class="text-xs font-bold text-slate-700 mt-2">${f.label}</p>`
-                            }
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Entry ID</label>
-                            ${f.isManual ? 
-                                `<input type="text" placeholder="entry.123456" value="${f.entryId}" onchange="updateDetectedField(${i}, 'entryId', this.value)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono outline-none focus:border-indigo-300">` :
-                                `<p class="text-xs font-mono text-indigo-500 bg-indigo-50 px-2 py-1 rounded inline-block mt-1">${f.entryId}</p>`
-                            }
-                        </div>
+                <div class="bg-white p-4 rounded-2xl border border-indigo-50 shadow-sm space-y-2">
+                    <div class="flex justify-between items-center px-1">
+                        <label class="text-[11px] font-bold text-slate-600 truncate pr-4">${f.label || 'ช่องคำถาม'}</label>
+                        <span class="text-[8px] font-mono text-indigo-400 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                            ${f.entryId}
+                        </span>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">คำตอบที่จะส่ง</label>
-                        <input type="text" placeholder="พิมพ์คำตอบ..." onchange="updateDetectedField(${i}, 'value', this.value)" value="${f.value}" class="field-input-val w-full px-4 py-2.5 bg-white border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium">
-                    </div>
+                    <input type="text" 
+                           placeholder="พิมพ์คำตอบที่จะส่ง..." 
+                           onchange="updateFieldValue(${i}, this.value)"
+                           class="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-sm transition-all">
                 </div>
             `).join('');
             if (window.lucide) window.lucide.createIcons();
         };
 
-        window.updateDetectedField = (index, key, value) => {
-            detectedFields[index][key] = value;
+        window.updateFieldValue = (index, value) => {
+            if (detectedFields[index]) { detectedFields[index].value = value; }
         };
 
         window.saveTask = async () => {
@@ -411,36 +456,23 @@
             const name = document.getElementById('task-name').value;
             const time = document.getElementById('task-time').value;
             const url = document.getElementById('form-url').value;
-
             if (!name || !time || detectedFields.length === 0) {
                 const errorAlert = document.getElementById('error-alert');
                 errorAlert.classList.remove('hidden');
-                document.getElementById('error-text').innerText = "กรุณากรอกข้อมูลและเพิ่มช่องคำถามให้ครบถ้วน";
+                document.getElementById('error-text').innerText = "กรุณากรอกข้อมูลและเตรียมช่องคำถามให้ครบถ้วน";
                 return;
             }
-
-            // Final sync of values just in case
-            const finalFields = detectedFields.map(f => ({
-                label: f.label,
-                entryId: f.entryId,
-                value: f.value
-            })).filter(f => f.entryId && f.label);
-
             let targetUrl = url.trim();
-            if (targetUrl.includes('/viewform')) {
-                targetUrl = targetUrl.split('?')[0].replace('/viewform', '/formResponse');
-            }
-
+            if (targetUrl.includes('/viewform')) { targetUrl = targetUrl.split('?')[0].replace('/viewform', '/formResponse'); }
             const tasksCol = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
             await addDoc(tasksCol, {
                 name,
                 url: targetUrl,
                 scheduledTime: new Date(time).toISOString(),
-                fields: finalFields,
+                fields: detectedFields,
                 status: 'pending',
                 createdAt: new Date().toISOString()
             });
-
             toggleModal(false);
         };
 
@@ -448,40 +480,28 @@
             if (!userId) return;
             const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', task.id);
             await updateDoc(taskRef, { status: 'sending' });
-
             try {
                 const params = new URLSearchParams();
                 task.fields.forEach(f => params.append(f.entryId, f.value));
-
                 await fetch(task.url, {
-                    method: 'POST',
-                    mode: 'no-cors',
+                    method: 'POST', mode: 'no-cors',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: params.toString()
                 });
-
                 await updateDoc(taskRef, { status: 'completed', executedAt: new Date().toISOString() });
-            } catch (err) {
-                await updateDoc(taskRef, { status: 'failed', error: err.message });
-            }
+            } catch (err) { await updateDoc(taskRef, { status: 'failed', error: err.message }); }
         };
 
         setInterval(() => {
             const now = new Date();
             const timeDisplay = document.getElementById('current-time-display');
             if (timeDisplay) timeDisplay.innerText = now.toLocaleTimeString();
-
             tasks.forEach(task => {
-                if (task.status === 'pending' && now >= new Date(task.scheduledTime)) {
-                    executeTask(task);
-                }
+                if (task.status === 'pending' && now >= new Date(task.scheduledTime)) { executeTask(task); }
             });
         }, 1000);
 
-        window.onload = () => {
-            initAuth();
-            if (window.lucide) window.lucide.createIcons();
-        };
+        window.onload = () => { initAuth(); if (window.lucide) window.lucide.createIcons(); };
     </script>
 </body>
 </html>
