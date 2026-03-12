@@ -16,6 +16,11 @@
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
+        /* Custom scrollbar for better look */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen pb-20">
@@ -100,11 +105,13 @@
             </div>
 
             <div class="p-8 space-y-8">
+                <!-- Error Alert -->
                 <div id="error-alert" class="hidden bg-red-50 border border-red-100 p-5 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-bold">
                     <i data-lucide="alert-circle" class="w-5 h-5"></i>
                     <span id="error-text"></span>
                 </div>
 
+                <!-- Step 1: URL -->
                 <div class="space-y-4">
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
@@ -113,19 +120,23 @@
                     <div class="flex gap-3">
                         <input id="form-url" type="url" placeholder="https://docs.google.com/forms/d/e/.../viewform" class="flex-1 px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs">
                         <button id="scan-btn" onclick="scanFormWithAI()" class="bg-indigo-600 text-white px-6 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition shadow-lg active:scale-95 disabled:opacity-50">
-                            <i data-lucide="search" class="w-4 h-4"></i>
+                            <i data-lucide="search" class="w-4 h-4 text-current"></i>
                             <span class="hidden sm:inline">สแกนฟอร์ม</span>
                         </button>
                     </div>
                 </div>
 
+                <!-- Step 2: AI Fields -->
                 <div id="ai-fields-container" class="hidden bg-indigo-50/40 p-8 rounded-[2rem] border border-indigo-100/50 space-y-6">
-                    <h4 class="text-xs font-black text-indigo-600 uppercase flex items-center gap-2">
-                        <i data-lucide="sparkles" class="w-4 h-4"></i> ตรวจพบช่องข้อมูล
+                    <h4 class="text-xs font-black text-indigo-600 uppercase flex items-center gap-2 border-b border-indigo-100 pb-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> ตรวจพบช่องข้อมูลที่ต้องกรอก
                     </h4>
-                    <div id="fields-list" class="space-y-5"></div>
+                    <div id="fields-list" class="space-y-5">
+                        <!-- Inputs will be rendered here -->
+                    </div>
                 </div>
 
+                <!-- Step 3: Meta -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
                     <div class="space-y-3">
                         <div class="flex items-center gap-2">
@@ -159,7 +170,7 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration (Updated with User Provided Config)
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyAJokuedwtzo5OIVawlT_AqJgFoZzE89ls",
             authDomain: "aotoform.firebaseapp.com",
@@ -181,7 +192,7 @@
         let userId, tasks = [];
         let detectedFields = [];
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-form-ai-html';
-        const apiKey = ""; // Gemini API Key (The environment will provide this)
+        const apiKey = ""; // Gemini API Key provided by env
 
         // UI Helpers
         window.toggleModal = (show) => {
@@ -191,36 +202,23 @@
         };
 
         const resetModalForm = () => {
-            const formUrl = document.getElementById('form-url');
-            const taskName = document.getElementById('task-name');
-            const taskTime = document.getElementById('task-time');
-            const aiContainer = document.getElementById('ai-fields-container');
-            const fieldsList = document.getElementById('fields-list');
-            const errorAlert = document.getElementById('error-alert');
-
-            if (formUrl) formUrl.value = '';
-            if (taskName) taskName.value = '';
-            if (taskTime) taskTime.value = '';
-            if (aiContainer) aiContainer.classList.add('hidden');
-            if (fieldsList) fieldsList.innerHTML = '';
-            if (errorAlert) errorAlert.classList.add('hidden');
+            document.getElementById('form-url').value = '';
+            document.getElementById('task-name').value = '';
+            document.getElementById('task-time').value = '';
+            document.getElementById('ai-fields-container').classList.add('hidden');
+            document.getElementById('fields-list').innerHTML = '';
+            document.getElementById('error-alert').classList.add('hidden');
             detectedFields = [];
         };
 
-        // Auth Init - Rule 3
+        // Auth Init
         const initAuth = async () => {
             try {
-                // If using a custom config, the initial system token might cause mismatch
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     try {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } catch (tokenErr) {
-                        // If token mismatch (common with custom project configs), fallback to anonymous
-                        if (tokenErr.code === 'auth/custom-token-mismatch' || tokenErr.code === 'auth/invalid-custom-token') {
-                            await signInAnonymously(auth);
-                        } else {
-                            throw tokenErr;
-                        }
+                        await signInAnonymously(auth);
                     }
                 } else {
                     await signInAnonymously(auth);
@@ -237,12 +235,9 @@
             }
         });
 
-        // Load Tasks (Real-time) - Rule 1 & 2
         const loadTasks = () => {
             if (!userId) return;
-            // Rule 1: Use specific path
             const tasksCol = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
-            // Rule 2: Simple query, sort in memory
             onSnapshot(tasksCol, (snapshot) => {
                 tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 tasks.sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
@@ -250,12 +245,10 @@
             }, (err) => console.error("Firestore Error:", err));
         };
 
-        // Render Dashboard
         const renderTasks = () => {
             const container = document.getElementById('tasks-list');
             const countLabel = document.getElementById('task-count');
             if (countLabel) countLabel.innerText = `${tasks.length} รายการ`;
-
             if (!container) return;
 
             if (tasks.length === 0) {
@@ -272,7 +265,7 @@
                             <div class="flex items-center gap-3 mb-2">
                                 <h4 class="font-bold text-slate-800 text-lg">${task.name}</h4>
                                 <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold uppercase border border-indigo-100">
-                                    ${task.fields?.length || 0} ช่อง
+                                    ${task.fields?.length || 0} ช่องข้อมูล
                                 </span>
                             </div>
                             <p class="text-xs text-slate-400 font-mono truncate max-w-sm">${task.url}</p>
@@ -285,7 +278,7 @@
                                 </span>
                             </div>
                         </div>
-                        <button onclick="window.deleteTaskAction('${task.id}')" class="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-90">
+                        <button onclick="window.deleteTaskAction('${task.id}')" class="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-90 shadow-sm">
                             <i data-lucide="trash-2" class="w-6 h-6"></i>
                         </button>
                     </div>
@@ -309,20 +302,27 @@
 
         // AI Scan Logic
         window.scanFormWithAI = async () => {
-            const urlInput = document.getElementById('form-url');
-            const url = urlInput ? urlInput.value : '';
+            const url = document.getElementById('form-url').value;
             if (!url) return;
 
             const btn = document.getElementById('scan-btn');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> สแกนอยู่...';
-            }
+            const aiContainer = document.getElementById('ai-fields-container');
+            const fieldsList = document.getElementById('fields-list');
+            const errorAlert = document.getElementById('error-alert');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> สแกนอยู่...';
+            errorAlert.classList.add('hidden');
+            aiContainer.classList.add('hidden');
             if (window.lucide) window.lucide.createIcons();
 
             try {
-                const systemPrompt = `Extract Google Form Entry IDs and labels from this URL. Return ONLY a JSON array: [{"label": "Q Name", "entryId": "entry.123"}]. No markdown.`;
-                const userQuery = `Scan this: ${url}`;
+                // Modified prompt for higher strictness and clarity
+                const systemPrompt = `You are a Google Form data extractor. Scan the provided URL and identify all visible input fields. 
+                Return a raw JSON array of objects with keys: "label" (the question text) and "entryId" (the entry.xxxx ID). 
+                Example: [{"label": "Name", "entryId": "entry.123"}]. Do not return any other text.`;
+                
+                const userQuery = `Find all fields for: ${url}`;
 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
@@ -336,25 +336,33 @@
 
                 const result = await response.json();
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                detectedFields = JSON.parse(cleanJson);
+                
+                // Enhanced cleaning to handle potential object wrapping
+                let cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                let parsed = JSON.parse(cleanJson);
 
-                if (Array.isArray(detectedFields)) {
+                // If result is an object with a field (like { "fields": [...] }), extract the array
+                if (!Array.isArray(parsed) && parsed.fields) {
+                    detectedFields = parsed.fields;
+                } else if (Array.isArray(parsed)) {
+                    detectedFields = parsed;
+                } else {
+                    throw new Error("Invalid format");
+                }
+
+                if (detectedFields.length > 0) {
                     renderFieldInputs();
-                    const aiContainer = document.getElementById('ai-fields-container');
-                    if (aiContainer) aiContainer.classList.remove('hidden');
+                    aiContainer.classList.remove('hidden');
+                } else {
+                    throw new Error("No fields found");
                 }
             } catch (err) {
                 console.error(err);
-                const errorAlert = document.getElementById('error-alert');
-                const errorText = document.getElementById('error-text');
-                if (errorAlert) errorAlert.classList.remove('hidden');
-                if (errorText) errorText.innerText = "ไม่สามารถสแกนได้ กรุณาลองใหม่";
+                errorAlert.classList.remove('hidden');
+                document.getElementById('error-text').innerText = "ไม่พบช่องข้อมูลหรือเกิดข้อผิดพลาดในการสแกน กรุณาตรวจสอบลิงก์และลองใหม่อีกครั้ง";
             } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i data-lucide="search" class="w-4 h-4"></i> สแกนฟอร์ม';
-                }
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search" class="w-4 h-4 text-current"></i> สแกนฟอร์ม';
                 if (window.lucide) window.lucide.createIcons();
             }
         };
@@ -362,29 +370,49 @@
         const renderFieldInputs = () => {
             const list = document.getElementById('fields-list');
             if (!list) return;
-            list.innerHTML = detectedFields.map((f, i) => `
-                <div class="space-y-2">
-                    <div class="flex justify-between items-end px-1">
-                        <label class="text-sm font-bold text-slate-700">${f.label}</label>
-                        <span class="text-[9px] font-mono text-indigo-400 font-bold bg-white px-2 py-0.5 rounded border border-indigo-50">${f.entryId}</span>
+            
+            // Clear previous list
+            list.innerHTML = '';
+            
+            // Render new inputs
+            const content = detectedFields.map((f, i) => `
+                <div class="space-y-2 bg-white/50 p-4 rounded-2xl border border-indigo-50 shadow-sm">
+                    <div class="flex justify-between items-center px-1">
+                        <label class="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-400"></i>
+                            ${f.label || 'คำถามไม่มีชื่อ'}
+                        </label>
+                        <span class="text-[8px] font-mono text-indigo-300 font-bold bg-indigo-50/50 px-2 py-0.5 rounded border border-indigo-100">
+                            ${f.entryId}
+                        </span>
                     </div>
-                    <input type="text" data-idx="${i}" placeholder="คำตอบ..." class="field-input w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all">
+                    <input type="text" 
+                           data-idx="${i}" 
+                           placeholder="พิมพ์คำตอบที่จะส่ง..." 
+                           class="field-input w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all text-sm font-medium">
                 </div>
             `).join('');
+            
+            list.innerHTML = content;
+            if (window.lucide) window.lucide.createIcons();
         };
 
-        // Save Task
         window.saveTask = async () => {
             if (!userId) return;
             const nameInput = document.getElementById('task-name');
             const timeInput = document.getElementById('task-time');
             const urlInput = document.getElementById('form-url');
 
-            const name = nameInput ? nameInput.value : '';
-            const time = timeInput ? timeInput.value : '';
-            const url = urlInput ? urlInput.value : '';
+            const name = nameInput.value;
+            const time = timeInput.value;
+            const url = urlInput.value;
 
-            if (!name || !time || detectedFields.length === 0) return;
+            if (!name || !time || detectedFields.length === 0) {
+                const errorAlert = document.getElementById('error-alert');
+                errorAlert.classList.remove('hidden');
+                document.getElementById('error-text').innerText = "กรุณากรอกข้อมูลและสแกนฟอร์มให้เรียบร้อยก่อนบันทึก";
+                return;
+            }
 
             const inputs = document.querySelectorAll('.field-input');
             const fieldsWithValues = detectedFields.map((f, i) => ({
@@ -410,7 +438,6 @@
             toggleModal(false);
         };
 
-        // Scheduler Loop
         const executeTask = async (task) => {
             if (!userId) return;
             const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', task.id);
