@@ -68,7 +68,6 @@
                 </div>
 
                 <div id="tasks-list" class="divide-y divide-slate-100">
-                    <!-- Loading state or empty state -->
                     <div class="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
                         <div class="bg-slate-100 p-4 rounded-full">
                             <i data-lucide="database" class="w-8 h-8 opacity-20"></i>
@@ -79,7 +78,6 @@
             </div>
         </main>
 
-        <!-- Floating Footer Status -->
         <div class="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 backdrop-blur-md px-6 py-3 rounded-full border border-slate-200 shadow-2xl z-30 transition-all hover:scale-105 group">
             <div class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-sm shadow-emerald-200"></div>
             <p class="text-[11px] font-black text-slate-600 uppercase tracking-widest">
@@ -102,13 +100,11 @@
             </div>
 
             <div class="p-8 space-y-8">
-                <!-- Error Message -->
                 <div id="error-alert" class="hidden bg-red-50 border border-red-100 p-5 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-bold">
                     <i data-lucide="alert-circle" class="w-5 h-5"></i>
                     <span id="error-text"></span>
                 </div>
 
-                <!-- Step 1: URL -->
                 <div class="space-y-4">
                     <div class="flex items-center gap-2">
                         <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
@@ -123,17 +119,13 @@
                     </div>
                 </div>
 
-                <!-- Step 2: AI Fields -->
                 <div id="ai-fields-container" class="hidden bg-indigo-50/40 p-8 rounded-[2rem] border border-indigo-100/50 space-y-6">
                     <h4 class="text-xs font-black text-indigo-600 uppercase flex items-center gap-2">
                         <i data-lucide="sparkles" class="w-4 h-4"></i> ตรวจพบช่องข้อมูล
                     </h4>
-                    <div id="fields-list" class="space-y-5">
-                        <!-- Fields go here -->
-                    </div>
+                    <div id="fields-list" class="space-y-5"></div>
                 </div>
 
-                <!-- Step 3: Meta -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
                     <div class="space-y-3">
                         <div class="flex items-center gap-2">
@@ -163,42 +155,78 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Firebase Configuration (Updated with User Provided Config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAJokuedwtzo5OIVawlT_AqJgFoZzE89ls",
+            authDomain: "aotoform.firebaseapp.com",
+            databaseURL: "https://aotoform-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "aotoform",
+            storageBucket: "aotoform.firebasestorage.app",
+            messagingSenderId: "94056136341",
+            appId: "1:94056136341:web:e2da62785217129070a59c",
+            measurementId: "G-SP8WCBMH6V"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
         // Global State
-        let db, auth, userId, tasks = [];
+        let userId, tasks = [];
         let detectedFields = [];
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-form-ai-html';
-        const apiKey = ""; // Runtime provides this
-
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
+        const apiKey = ""; // Gemini API Key (The environment will provide this)
 
         // UI Helpers
         window.toggleModal = (show) => {
-            document.getElementById('modal-overlay').classList.toggle('hidden', !show);
+            const modal = document.getElementById('modal-overlay');
+            if (modal) modal.classList.toggle('hidden', !show);
             if(!show) resetModalForm();
         };
 
         const resetModalForm = () => {
-            document.getElementById('form-url').value = '';
-            document.getElementById('task-name').value = '';
-            document.getElementById('task-time').value = '';
-            document.getElementById('ai-fields-container').classList.add('hidden');
-            document.getElementById('fields-list').innerHTML = '';
-            document.getElementById('error-alert').classList.add('hidden');
+            const formUrl = document.getElementById('form-url');
+            const taskName = document.getElementById('task-name');
+            const taskTime = document.getElementById('task-time');
+            const aiContainer = document.getElementById('ai-fields-container');
+            const fieldsList = document.getElementById('fields-list');
+            const errorAlert = document.getElementById('error-alert');
+
+            if (formUrl) formUrl.value = '';
+            if (taskName) taskName.value = '';
+            if (taskTime) taskTime.value = '';
+            if (aiContainer) aiContainer.classList.add('hidden');
+            if (fieldsList) fieldsList.innerHTML = '';
+            if (errorAlert) errorAlert.classList.add('hidden');
             detectedFields = [];
         };
 
-        // 1. Auth Init
+        // Auth Init - Rule 3
         const initAuth = async () => {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-            } else {
-                await signInAnonymously(auth);
+            try {
+                // If using a custom config, the initial system token might cause mismatch
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenErr) {
+                        // If token mismatch (common with custom project configs), fallback to anonymous
+                        if (tokenErr.code === 'auth/custom-token-mismatch' || tokenErr.code === 'auth/invalid-custom-token') {
+                            await signInAnonymously(auth);
+                        } else {
+                            throw tokenErr;
+                        }
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth Failure:", err);
             }
         };
 
@@ -209,9 +237,12 @@
             }
         });
 
-        // 2. Load Tasks (Real-time)
+        // Load Tasks (Real-time) - Rule 1 & 2
         const loadTasks = () => {
+            if (!userId) return;
+            // Rule 1: Use specific path
             const tasksCol = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+            // Rule 2: Simple query, sort in memory
             onSnapshot(tasksCol, (snapshot) => {
                 tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 tasks.sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
@@ -219,11 +250,13 @@
             }, (err) => console.error("Firestore Error:", err));
         };
 
-        // 3. Render Dashboard
+        // Render Dashboard
         const renderTasks = () => {
             const container = document.getElementById('tasks-list');
             const countLabel = document.getElementById('task-count');
-            countLabel.innerText = `${tasks.length} รายการ`;
+            if (countLabel) countLabel.innerText = `${tasks.length} รายการ`;
+
+            if (!container) return;
 
             if (tasks.length === 0) {
                 container.innerHTML = `
@@ -258,29 +291,34 @@
                     </div>
                 `).join('');
             }
-            lucide.createIcons();
+            if (window.lucide) window.lucide.createIcons();
         };
 
         const getStatusStyles = (status) => {
             if (status === 'pending') return 'bg-amber-50 text-amber-600 border-amber-100';
             if (status === 'completed') return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+            if (status === 'sending') return 'bg-blue-50 text-blue-600 border-blue-100 animate-pulse';
             return 'bg-red-50 text-red-600 border-red-100';
         };
 
         window.deleteTaskAction = async (id) => {
+            if (!userId) return;
             const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', id);
             await deleteDoc(taskRef);
         };
 
-        // 4. AI Scan Logic
+        // AI Scan Logic
         window.scanFormWithAI = async () => {
-            const url = document.getElementById('form-url').value;
+            const urlInput = document.getElementById('form-url');
+            const url = urlInput ? urlInput.value : '';
             if (!url) return;
 
             const btn = document.getElementById('scan-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> สแกนอยู่...';
-            lucide.createIcons();
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> สแกนอยู่...';
+            }
+            if (window.lucide) window.lucide.createIcons();
 
             try {
                 const systemPrompt = `Extract Google Form Entry IDs and labels from this URL. Return ONLY a JSON array: [{"label": "Q Name", "entryId": "entry.123"}]. No markdown.`;
@@ -303,21 +341,27 @@
 
                 if (Array.isArray(detectedFields)) {
                     renderFieldInputs();
-                    document.getElementById('ai-fields-container').classList.remove('hidden');
+                    const aiContainer = document.getElementById('ai-fields-container');
+                    if (aiContainer) aiContainer.classList.remove('hidden');
                 }
             } catch (err) {
                 console.error(err);
-                document.getElementById('error-alert').classList.remove('hidden');
-                document.getElementById('error-text').innerText = "ไม่สามารถสแกนได้ กรุณาลองใหม่";
+                const errorAlert = document.getElementById('error-alert');
+                const errorText = document.getElementById('error-text');
+                if (errorAlert) errorAlert.classList.remove('hidden');
+                if (errorText) errorText.innerText = "ไม่สามารถสแกนได้ กรุณาลองใหม่";
             } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="search" class="w-4 h-4"></i> สแกนฟอร์ม';
-                lucide.createIcons();
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="search" class="w-4 h-4"></i> สแกนฟอร์ม';
+                }
+                if (window.lucide) window.lucide.createIcons();
             }
         };
 
         const renderFieldInputs = () => {
             const list = document.getElementById('fields-list');
+            if (!list) return;
             list.innerHTML = detectedFields.map((f, i) => `
                 <div class="space-y-2">
                     <div class="flex justify-between items-end px-1">
@@ -329,18 +373,23 @@
             `).join('');
         };
 
-        // 5. Save Task
+        // Save Task
         window.saveTask = async () => {
-            const name = document.getElementById('task-name').value;
-            const time = document.getElementById('task-time').value;
-            const url = document.getElementById('form-url').value;
+            if (!userId) return;
+            const nameInput = document.getElementById('task-name');
+            const timeInput = document.getElementById('task-time');
+            const urlInput = document.getElementById('form-url');
+
+            const name = nameInput ? nameInput.value : '';
+            const time = timeInput ? timeInput.value : '';
+            const url = urlInput ? urlInput.value : '';
 
             if (!name || !time || detectedFields.length === 0) return;
 
             const inputs = document.querySelectorAll('.field-input');
             const fieldsWithValues = detectedFields.map((f, i) => ({
                 ...f,
-                value: inputs[i].value
+                value: inputs[i] ? inputs[i].value : ''
             }));
 
             let targetUrl = url.trim();
@@ -361,8 +410,9 @@
             toggleModal(false);
         };
 
-        // 6. Scheduler Loop
+        // Scheduler Loop
         const executeTask = async (task) => {
+            if (!userId) return;
             const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', task.id);
             await updateDoc(taskRef, { status: 'sending' });
 
@@ -385,7 +435,8 @@
 
         setInterval(() => {
             const now = new Date();
-            document.getElementById('current-time-display').innerText = now.toLocaleTimeString();
+            const timeDisplay = document.getElementById('current-time-display');
+            if (timeDisplay) timeDisplay.innerText = now.toLocaleTimeString();
 
             tasks.forEach(task => {
                 if (task.status === 'pending' && now >= new Date(task.scheduledTime)) {
@@ -396,7 +447,7 @@
 
         window.onload = () => {
             initAuth();
-            lucide.createIcons();
+            if (window.lucide) window.lucide.createIcons();
         };
     </script>
 </body>
