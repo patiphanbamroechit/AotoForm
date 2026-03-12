@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormAI Auto - Google Form Scheduler</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+        .modal-animate { animation: zoomIn 0.3s ease-out; }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen pb-20">
+
+    <!-- App Container -->
+    <div id="app">
+        <!-- Navigation -->
+        <nav class="bg-white/80 backdrop-blur-md border-b sticky top-0 z-40 px-6 py-4 flex justify-between items-center shadow-sm">
+            <div class="flex items-center gap-2">
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-xl text-white shadow-lg">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <h1 class="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                    FormAI Auto
+                </h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="hidden sm:block text-right">
+                    <p class="text-[9px] uppercase font-bold text-slate-400">เวลาปัจจุบัน</p>
+                    <p id="current-time-display" class="text-xs font-mono font-bold">00:00:00</p>
+                </div>
+                <button onclick="toggleModal(true)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 font-bold transition shadow-md active:scale-95">
+                    <i data-lucide="plus" class="w-4 h-4"></i> ตั้งเวลาใหม่
+                </button>
+            </div>
+        </nav>
+
+        <main class="max-w-4xl mx-auto px-4 mt-8">
+            <!-- Banner -->
+            <div class="bg-indigo-600 rounded-[2.5rem] p-8 text-white mb-10 shadow-2xl shadow-indigo-100 relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="text-2xl font-black mb-2 flex items-center gap-2">
+                        <i data-lucide="sparkles" class="text-yellow-300"></i> ระบบพร้อมใช้งานบน GitHub!
+                    </h2>
+                    <p class="text-indigo-100 text-sm opacity-90 leading-relaxed max-w-md">
+                        ไฟล์นี้ทำงานแบบ Standalone คุณสามารถเปิดผ่าน Browser หรือโฮสต์บน GitHub Pages ได้ทันที 
+                        อย่าลืมเปิดหน้าจอนี้ค้างไว้เพื่อให้ระบบทำงานตามเวลาครับ
+                    </p>
+                </div>
+                <i data-lucide="search" class="absolute -bottom-10 -right-10 opacity-10 w-60 h-60"></i>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-8 py-5 border-b bg-slate-50/50 flex items-center justify-between">
+                    <h3 class="font-bold text-slate-700 flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i> รายการที่รอดำเนินการ
+                    </h3>
+                    <span id="task-count" class="text-xs font-bold text-slate-400">0 รายการ</span>
+                </div>
+
+                <div id="tasks-list" class="divide-y divide-slate-100">
+                    <!-- Loading state or empty state -->
+                    <div class="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
+                        <div class="bg-slate-100 p-4 rounded-full">
+                            <i data-lucide="database" class="w-8 h-8 opacity-20"></i>
+                        </div>
+                        <p class="text-sm font-medium">กำลังโหลดข้อมูลหรือยังไม่มีรายการ...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Floating Footer Status -->
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 backdrop-blur-md px-6 py-3 rounded-full border border-slate-200 shadow-2xl z-30 transition-all hover:scale-105 group">
+            <div class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-sm shadow-emerald-200"></div>
+            <p class="text-[11px] font-black text-slate-600 uppercase tracking-widest">
+                System Active - กรุณาเปิดหน้าจอนี้ค้างไว้
+            </p>
+        </div>
+    </div>
+
+    <!-- Modal Form -->
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto hidden">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-2xl shadow-2xl overflow-hidden border border-white my-8 modal-animate">
+            <div class="px-8 py-7 border-b flex justify-between items-center bg-slate-50/80 sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-6 h-6 text-indigo-600"></i> ตั้งเวลาใหม่ด้วย AI
+                    </h3>
+                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-0.5">Automated Field Discovery</p>
+                </div>
+                <button onclick="toggleModal(false)" class="w-10 h-10 flex items-center justify-center bg-white rounded-full text-slate-400 hover:text-slate-600 shadow-sm border">✕</button>
+            </div>
+
+            <div class="p-8 space-y-8">
+                <!-- Error Message -->
+                <div id="error-alert" class="hidden bg-red-50 border border-red-100 p-5 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-bold">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    <span id="error-text"></span>
+                </div>
+
+                <!-- Step 1: URL -->
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">1</span>
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-wider">ใส่ลิงก์ Google Form</label>
+                    </div>
+                    <div class="flex gap-3">
+                        <input id="form-url" type="url" placeholder="https://docs.google.com/forms/d/e/.../viewform" class="flex-1 px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-xs">
+                        <button id="scan-btn" onclick="scanFormWithAI()" class="bg-indigo-600 text-white px-6 rounded-2xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition shadow-lg active:scale-95 disabled:opacity-50">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">สแกนฟอร์ม</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: AI Fields -->
+                <div id="ai-fields-container" class="hidden bg-indigo-50/40 p-8 rounded-[2rem] border border-indigo-100/50 space-y-6">
+                    <h4 class="text-xs font-black text-indigo-600 uppercase flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-4 h-4"></i> ตรวจพบช่องข้อมูล
+                    </h4>
+                    <div id="fields-list" class="space-y-5">
+                        <!-- Fields go here -->
+                    </div>
+                </div>
+
+                <!-- Step 3: Meta -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 pt-6 border-t border-slate-100">
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">2</span>
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-wider">ชื่องานของคุณ</label>
+                        </div>
+                        <input id="task-name" type="text" placeholder="เช่น เช็คชื่อเข้างาน" class="w-full px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold">
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">3</span>
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-wider">วันและเวลาที่ต้องการส่ง</label>
+                        </div>
+                        <input id="task-time" type="datetime-local" class="w-full px-6 py-4 bg-slate-100 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold">
+                    </div>
+                </div>
+
+                <div class="pt-4">
+                    <button id="save-btn" onclick="saveTask()" class="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-lg hover:bg-black transition shadow-xl disabled:opacity-20 active:scale-[0.98]">
+                        ตกลง ตั้งเวลาส่งฟอร์ม
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State
+        let db, auth, userId, tasks = [];
+        let detectedFields = [];
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-form-ai-html';
+        const apiKey = ""; // Runtime provides this
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+
+        // UI Helpers
+        window.toggleModal = (show) => {
+            document.getElementById('modal-overlay').classList.toggle('hidden', !show);
+            if(!show) resetModalForm();
+        };
+
+        const resetModalForm = () => {
+            document.getElementById('form-url').value = '';
+            document.getElementById('task-name').value = '';
+            document.getElementById('task-time').value = '';
+            document.getElementById('ai-fields-container').classList.add('hidden');
+            document.getElementById('fields-list').innerHTML = '';
+            document.getElementById('error-alert').classList.add('hidden');
+            detectedFields = [];
+        };
+
+        // 1. Auth Init
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await signInWithCustomToken(auth, __initial_auth_token);
+            } else {
+                await signInAnonymously(auth);
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userId = user.uid;
+                loadTasks();
+            }
+        });
+
+        // 2. Load Tasks (Real-time)
+        const loadTasks = () => {
+            const tasksCol = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+            onSnapshot(tasksCol, (snapshot) => {
+                tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                tasks.sort((a, b) => new Date(a.scheduledTime) - new Date(b.scheduledTime));
+                renderTasks();
+            }, (err) => console.error("Firestore Error:", err));
+        };
+
+        // 3. Render Dashboard
+        const renderTasks = () => {
+            const container = document.getElementById('tasks-list');
+            const countLabel = document.getElementById('task-count');
+            countLabel.innerText = `${tasks.length} รายการ`;
+
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="py-24 text-center text-slate-400 flex flex-col items-center gap-3">
+                        <div class="bg-slate-100 p-4 rounded-full"><i data-lucide="database" class="w-8 h-8 opacity-20"></i></div>
+                        <p class="text-sm font-medium">ยังไม่มีรายการที่ตั้งเวลาไว้</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = tasks.map(task => `
+                    <div class="p-8 hover:bg-slate-50/30 transition flex flex-col sm:flex-row sm:items-center gap-6">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h4 class="font-bold text-slate-800 text-lg">${task.name}</h4>
+                                <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-bold uppercase border border-indigo-100">
+                                    ${task.fields?.length || 0} ช่อง
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400 font-mono truncate max-w-sm">${task.url}</p>
+                            <div class="mt-4 flex flex-wrap items-center gap-4">
+                                <div class="text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-2 border ${getStatusStyles(task.status)}">
+                                    ${task.status.toUpperCase()}
+                                </div>
+                                <span class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">
+                                    🗓️ ${new Date(task.scheduledTime).toLocaleString('th-TH')}
+                                </span>
+                            </div>
+                        </div>
+                        <button onclick="window.deleteTaskAction('${task.id}')" class="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all active:scale-90">
+                            <i data-lucide="trash-2" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+            lucide.createIcons();
+        };
+
+        const getStatusStyles = (status) => {
+            if (status === 'pending') return 'bg-amber-50 text-amber-600 border-amber-100';
+            if (status === 'completed') return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+            return 'bg-red-50 text-red-600 border-red-100';
+        };
+
+        window.deleteTaskAction = async (id) => {
+            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', id);
+            await deleteDoc(taskRef);
+        };
+
+        // 4. AI Scan Logic
+        window.scanFormWithAI = async () => {
+            const url = document.getElementById('form-url').value;
+            if (!url) return;
+
+            const btn = document.getElementById('scan-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> สแกนอยู่...';
+            lucide.createIcons();
+
+            try {
+                const systemPrompt = `Extract Google Form Entry IDs and labels from this URL. Return ONLY a JSON array: [{"label": "Q Name", "entryId": "entry.123"}]. No markdown.`;
+                const userQuery = `Scan this: ${url}`;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userQuery }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] },
+                        tools: [{ "google_search": {} }]
+                    })
+                });
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+                const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+                detectedFields = JSON.parse(cleanJson);
+
+                if (Array.isArray(detectedFields)) {
+                    renderFieldInputs();
+                    document.getElementById('ai-fields-container').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById('error-alert').classList.remove('hidden');
+                document.getElementById('error-text').innerText = "ไม่สามารถสแกนได้ กรุณาลองใหม่";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search" class="w-4 h-4"></i> สแกนฟอร์ม';
+                lucide.createIcons();
+            }
+        };
+
+        const renderFieldInputs = () => {
+            const list = document.getElementById('fields-list');
+            list.innerHTML = detectedFields.map((f, i) => `
+                <div class="space-y-2">
+                    <div class="flex justify-between items-end px-1">
+                        <label class="text-sm font-bold text-slate-700">${f.label}</label>
+                        <span class="text-[9px] font-mono text-indigo-400 font-bold bg-white px-2 py-0.5 rounded border border-indigo-50">${f.entryId}</span>
+                    </div>
+                    <input type="text" data-idx="${i}" placeholder="คำตอบ..." class="field-input w-full px-5 py-3.5 bg-white border border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm transition-all">
+                </div>
+            `).join('');
+        };
+
+        // 5. Save Task
+        window.saveTask = async () => {
+            const name = document.getElementById('task-name').value;
+            const time = document.getElementById('task-time').value;
+            const url = document.getElementById('form-url').value;
+
+            if (!name || !time || detectedFields.length === 0) return;
+
+            const inputs = document.querySelectorAll('.field-input');
+            const fieldsWithValues = detectedFields.map((f, i) => ({
+                ...f,
+                value: inputs[i].value
+            }));
+
+            let targetUrl = url.trim();
+            if (targetUrl.includes('/viewform')) {
+                targetUrl = targetUrl.split('?')[0].replace('/viewform', '/formResponse');
+            }
+
+            const tasksCol = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+            await addDoc(tasksCol, {
+                name,
+                url: targetUrl,
+                scheduledTime: new Date(time).toISOString(),
+                fields: fieldsWithValues,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            });
+
+            toggleModal(false);
+        };
+
+        // 6. Scheduler Loop
+        const executeTask = async (task) => {
+            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', task.id);
+            await updateDoc(taskRef, { status: 'sending' });
+
+            try {
+                const params = new URLSearchParams();
+                task.fields.forEach(f => params.append(f.entryId, f.value));
+
+                await fetch(task.url, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: params.toString()
+                });
+
+                await updateDoc(taskRef, { status: 'completed', executedAt: new Date().toISOString() });
+            } catch (err) {
+                await updateDoc(taskRef, { status: 'failed', error: err.message });
+            }
+        };
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('current-time-display').innerText = now.toLocaleTimeString();
+
+            tasks.forEach(task => {
+                if (task.status === 'pending' && now >= new Date(task.scheduledTime)) {
+                    executeTask(task);
+                }
+            });
+        }, 1000);
+
+        window.onload = () => {
+            initAuth();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
